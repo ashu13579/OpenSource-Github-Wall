@@ -1,84 +1,77 @@
 name: Update README Contributors
 
 permissions:
-contents: write
+  contents: write
 
 on:
-push:
-paths:
-- 'contributors/*.json'
-- '.github/workflows/update-readme.yml'
+  push:
+    paths:
+      - 'contributors/*.json'
+      - '.github/workflows/update-readme.yml'
 
 jobs:
-update-readme:
-runs-on: ubuntu-latest
+  update-readme:
+    runs-on: ubuntu-latest
 
-```
-steps:
-  - name: Checkout repo
-    uses: actions/checkout@v3
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-  - name: Generate contributor grid
-    run: |
-      echo "<table>" > grid.html
+      - name: Generate contributor grid
+        run: |
+          echo "<table>" > grid.html
 
-      count=0
-
-      shopt -s nullglob
-      for file in contributors/*.json; do
-
-        # Skip invalid JSON files
-        if ! jq empty "$file" 2>/dev/null; then
-          echo "Skipping invalid JSON: $file"
-          continue
-        fi
-
-        github=$(jq -r '.github' "$file")
-
-        # Normalize username (works with username or full GitHub URL)
-        username=$(echo "$github" | sed 's|https://github.com/||')
-
-        # Start new row
-        if [ $count -eq 0 ]; then
-          echo "<tr>" >> grid.html
-        fi
-
-        echo "<td align='center' width='120px'>" >> grid.html
-        echo "<a href='https://github.com/$username'>" >> grid.html
-        echo "<img src='https://github.com/$username.png' width='80px' style='border-radius:50%'><br>" >> grid.html
-        echo "<sub><b>$username</b></sub>" >> grid.html
-        echo "</a>" >> grid.html
-        echo "</td>" >> grid.html
-
-        count=$((count+1))
-
-        # Close row after 6 contributors
-        if [ $count -eq 6 ]; then
-          echo "</tr>" >> grid.html
           count=0
-        fi
 
-      done
+          shopt -s nullglob
+          for file in contributors/*.json; do
 
-      # Close last row if not full
-      if [ $count -ne 0 ]; then
-        echo "</tr>" >> grid.html
-      fi
+            if ! jq empty "$file" 2>/dev/null; then
+              echo "Skipping invalid JSON: $file"
+              continue
+            fi
 
-      echo "</table>" >> grid.html
+            github=$(jq -r '.github' "$file")
+            username=$(echo "$github" | sed 's|https://github.com/||')
 
-  - name: Insert into README
-    run: |
-      awk '
-      BEGIN {p=1}
-      /<!-- CONTRIBUTORS-LIST:START -->/ {print; system("cat grid.html"); p=0; next}
-      /<!-- CONTRIBUTORS-LIST:END -->/ {p=1}
-      p' README.md > README.tmp && mv README.tmp README.md
+            if [ $count -eq 0 ]; then
+              echo "<tr>" >> grid.html
+            fi
 
-  - name: Commit changes
-    run: |
-      git config user.name "github-actions"
-      git config user.email "actions@github.com"
-      git add README.md
-      git commit -m "Update contributor grid" || echo "No changes"
-      git push
+            echo "<td align='center' width='120px'>" >> grid.html
+            echo "<a href='https://github.com/$username'>" >> grid.html
+            echo "<img src='https://github.com/$username.png' width='80px' style='border-radius:50%'><br>" >> grid.html
+            echo "<sub><b>$username</b></sub>" >> grid.html
+            echo "</a>" >> grid.html
+            echo "</td>" >> grid.html
+
+            count=$((count+1))
+
+            if [ $count -eq 6 ]; then
+              echo "</tr>" >> grid.html
+              count=0
+            fi
+
+          done
+
+          if [ $count -ne 0 ]; then
+            echo "</tr>" >> grid.html
+          fi
+
+          echo "</table>" >> grid.html
+
+      - name: Insert into README
+        run: |
+          awk '
+          BEGIN {p=1}
+          /<!-- CONTRIBUTORS-LIST:START -->/ {print; system("cat grid.html"); p=0; next}
+          /<!-- CONTRIBUTORS-LIST:END -->/ {p=1}
+          p' README.md > README.tmp && mv README.tmp README.md
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add README.md
+          git commit -m "Update contributor grid" || echo "No changes"
+          git push
